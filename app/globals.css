@@ -193,3 +193,15 @@ details[open] > summary .chev { transform: rotate(180deg); }
 .toast button { color: var(--ai); font-weight: 700; text-decoration: underline; }
 @media (min-width: 900px) { .toast { bottom: 28px; } }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ---------- camera & lens pickers ---------- */
+select.input { appearance: none; -webkit-appearance: none; padding-right: 40px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23A79D90' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+select.input:disabled { opacity: .5; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span { font-size: 13px; font-weight: 600; color: var(--mu); }
+.brandgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.brandgrid button { min-height: 48px; border-radius: 14px; background: var(--s2); border: 1px solid var(--bd); font-size: 14px; font-weight: 600; padding: 0 10px; }
+.brandgrid button.on { border-color: var(--ac); color: var(--ac); }
+.sug { border: 1px solid var(--bd); border-radius: 16px; padding: 12px; background: var(--s2); display: flex; flex-direction: column; gap: 6px; }
+.sug.best { border-color: var(--ac); }
+.rank { width: 24px; height: 24px; border-radius: 12px; background: var(--ac); color: var(--ai); font-size: 13px; font-weight: 800; display: grid; place-items: center; flex: none; }
