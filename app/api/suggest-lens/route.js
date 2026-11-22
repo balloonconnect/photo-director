@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getDevice, json } from '@/lib/device';
-import { provider, geminiJson } from '@/lib/llm';
+import { provider, geminiJson, anthropicKey } from '@/lib/llm';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -81,7 +81,7 @@ export async function POST(req) {
       if (!rec.length) throw new Error('empty');
       return json({ look: String(out.look || '').slice(0, 300), recommendations: rec }, device);
     }
-    const client = new Anthropic();
+    const client = new Anthropic({ apiKey: anthropicKey() });
     const res = await client.messages.create({
       model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5', max_tokens: 900,
       system: 'You are a photography lens expert. Judge the REFERENCE photo\'s lens look (apparent focal length from perspective and compression, depth of field) and recommend lenses from the allowed list that would recreate it on the photographer\'s camera. Be honest if the look can\'t be judged. Respond only via the tool.',

@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getDevice } from '@/lib/device';
 import { hit } from '@/lib/db';
 import { getContext } from '@/lib/context';
-import { provider, geminiStream } from '@/lib/llm';
+import { provider, geminiStream, anthropicKey } from '@/lib/llm';
 import { PLAN_TOOL, SYSTEM_PROMPT, STAGE_KEYS, buildUserContent, normalizePlan, mockPlan } from '@/lib/ai';
 
 export const dynamic = 'force-dynamic';
@@ -109,7 +109,7 @@ export async function POST(req) {
             onText(value);
           }
         } else {
-          const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+          const client = new Anthropic({ apiKey: anthropicKey() });
           const events = await client.messages.create({
             model: MODEL(),
             max_tokens: 8000,
