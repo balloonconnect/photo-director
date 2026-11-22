@@ -29,7 +29,7 @@ function heuristic(body, cands) {
   return {
     look: `Basic suggestion based on a ~${Math.round(target)}mm look. Add your API key for a photo-based match.`,
     basic: true,
-    recommendations: scored.map(({ c }, i) => ({ name: c.name, rank: i + 1, why: `${c.zoom ? `${c.wide}–${c.tele}mm` : `${c.wide}mm`} f/${c.ap} covers about ${Math.round(target)}mm${c.ap <= 1.8 ? ' with a soft, shallow background' : ''}.`, focal_mm: String(Math.round(Math.min(Math.max(target, c.wide), c.tele))), aperture: `f/${c.ap}` })),
+    recommendations: scored.map(({ c }, i) => ({ name: c.name, rank: i + 1, why: `${c.zoom ? `${c.wide}–${c.tele}mm` : `${c.wide}mm`} f/${c.ap} is closest to the ~${Math.round(target)}mm look${c.ap <= 1.8 ? ' with a soft, shallow background' : ''}.`, focal_mm: String(Math.round(Math.min(Math.max(target, c.wide), c.tele))), aperture: `f/${c.ap}` })),
   };
 }
 
