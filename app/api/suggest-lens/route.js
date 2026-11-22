@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getDevice, json } from '@/lib/device';
+import { provider, geminiJson } from '@/lib/llm';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -41,7 +42,8 @@ export async function POST(req) {
   if (!cands.length) return json({ error: 'No lenses to choose from.' }, device, 400);
   if (!magicOk(body.reference)) return json({ error: 'Add a reference photo first.' }, device, 400);
   if (throttled(device.id)) return json({ error: 'Too many suggestions. Try again in a little while.' }, device, 429);
-  if (process.env.MOCK_AI === '1' || !process.env.ANTHROPIC_API_KEY) return json(heuristic(body, cands), device);
+  const PROV = provider();
+  if (process.env.MOCK_AI === '1' || !PROV) return json(heuristic(body, cands), device);
 
   const names = cands.map((c) => c.name);
   const tool = {
@@ -71,6 +73,14 @@ export async function POST(req) {
   const owned = (Array.isArray(body.owned) ? body.owned : []).map((x) => String(x).slice(0, 80)).slice(0, 20);
   const crop = Number(body.crop) || 1;
   try {
+    const system = 'You are a photography lens expert. Judge the REFERENCE photo\'s lens look (apparent focal length from perspective and compression, depth of field) and recommend lenses from the allowed list that would recreate it on the photographer\'s camera. Be honest if the look can\'t be judged. Respond only via the tool.';
+    const userText = `Camera: ${String(body.camera || 'unknown').slice(0, 80)} (crop factor ${crop}, focal lengths below are as marked on the lens).\nSubject: ${String(body.subjectType || 'auto').slice(0, 20)}.\nReference EXIF focal length (35mm equivalent): ${Number(body.refFocal) > 0 ? Math.round(Number(body.refFocal)) + 'mm' : 'unknown'}.\nLenses the photographer already owns: ${owned.join('; ') || 'none listed'}.\nAllowed lenses:\n${cands.map((c) => `- ${c.name} (${c.zoom ? `${c.wide}-${c.tele}mm` : `${c.wide}mm`} f/${c.ap})`).join('\n')}`;
+    if (PROV === 'gemini') {
+      const out = await geminiJson({ system, schema: tool.input_schema, maxTokens: 1500, content: [{ type: 'image', source: { media_type: m[1], data: m[2] } }, { type: 'text', text: userText }] });
+      const rec = (out.recommendations || []).filter((r) => names.includes(r.name)).slice(0, 3).map((r, i) => ({ ...r, rank: i + 1 }));
+      if (!rec.length) throw new Error('empty');
+      return json({ look: String(out.look || '').slice(0, 300), recommendations: rec }, device);
+    }
     const client = new Anthropic();
     const res = await client.messages.create({
       model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5', max_tokens: 900,

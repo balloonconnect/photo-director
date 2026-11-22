@@ -15,7 +15,7 @@ export default function Home() {
       </header>
 
       {health && !health.ai && (
-        <div className="card err" role="alert"><div className="row"><Icon name="alert" className="" style={{ color: 'var(--er)' }} /><b style={{ color: 'var(--er)' }}>AI is not connected</b></div><p className="small muted">The server has no AI key yet, so plans can’t be generated. Add <code>ANTHROPIC_API_KEY</code> in the hosting environment variables.</p></div>
+        <div className="card err" role="alert"><div className="row"><Icon name="alert" className="" style={{ color: 'var(--er)' }} /><b style={{ color: 'var(--er)' }}>AI is not connected</b></div><p className="small muted">The server has no AI key yet, so plans can’t be generated. Add <code>GEMINI_API_KEY</code> (free) or <code>ANTHROPIC_API_KEY</code> in the hosting environment variables.</p></div>
       )}
 
       <section className="card" style={{ borderRadius: 24 }}>

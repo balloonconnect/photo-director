@@ -12,7 +12,7 @@ Next.js 15 (App Router) · Anthropic API (server-side) · Supabase storage · de
 
 | Variable | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | Required for real analyses |
+| `GEMINI_API_KEY` or `ANTHROPIC_API_KEY` | One is required for real analyses (Gemini has a free tier) |
 | `ANTHROPIC_MODEL` | Defaults to `claude-sonnet-5-5` |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Storage for gear and plans (access only via the SQL functions) |
 | `ANALYSES_PER_DEVICE_PER_DAY`, `ANALYSES_GLOBAL_PER_DAY` | Abuse limits (15 / 300) |

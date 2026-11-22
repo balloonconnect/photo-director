@@ -2,12 +2,14 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getDevice } from '@/lib/device';
 import { hit } from '@/lib/db';
 import { getContext } from '@/lib/context';
+import { provider, geminiStream } from '@/lib/llm';
 import { PLAN_TOOL, SYSTEM_PROMPT, STAGE_KEYS, buildUserContent, normalizePlan, mockPlan } from '@/lib/ai';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
 const MODEL = () => process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
+const PROVIDER = provider();
 const enc = new TextEncoder();
 
 function magicOk(dataUrl) {
@@ -46,7 +48,7 @@ export async function POST(req) {
   const err = (message, status, code) => new Response(JSON.stringify({ error: message, code }), { status, headers: { 'Content-Type': 'application/json' } });
 
   const mock = process.env.MOCK_AI === '1';
-  if (!mock && !process.env.ANTHROPIC_API_KEY) return err('The AI service is not configured on the server (missing ANTHROPIC_API_KEY).', 503, 'no_key');
+  if (!mock && !PROVIDER) return err('The AI service is not configured on the server (set GEMINI_API_KEY or ANTHROPIC_API_KEY).', 503, 'no_key');
 
   let body;
   try { body = await req.json(); } catch { return err('Invalid request.', 400, 'bad_request'); }
@@ -90,31 +92,42 @@ export async function POST(req) {
           return;
         }
 
-        const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-        const events = await client.messages.create({
-          model: MODEL(),
-          max_tokens: 8000,
-          system: SYSTEM_PROMPT,
-          tools: [PLAN_TOOL],
-          tool_choice: { type: 'tool', name: PLAN_TOOL.name },
-          messages: [{ role: 'user', content: buildUserContent(input, ctx) }],
-          stream: true,
-        }, { signal: abort.signal });
+        let buf = ''; let stage = 1; let stop = null; let modelUsed = MODEL();
+        const onText = (t) => {
+          buf += t;
+          for (let i = STAGE_KEYS.length - 1; i >= stage; i--) {
+            if (new RegExp(`"${STAGE_KEYS[i]}"\\s*:`).test(buf)) { stage = i + 1; send({ type: 'stage', stage }); break; }
+          }
+        };
+        send({ type: 'stage', stage: 1 });
 
-        let buf = ''; let stage = 0; let stop = null;
-        send({ type: 'stage', stage: 1 }); stage = 1;
-        for await (const ev of events) {
-          if (ev.type === 'content_block_delta' && ev.delta?.type === 'input_json_delta') {
-            buf += ev.delta.partial_json;
-            for (let i = STAGE_KEYS.length - 1; i >= stage; i--) {
-              if (new RegExp(`"${STAGE_KEYS[i]}"\\s*:`).test(buf)) { stage = i + 1; send({ type: 'stage', stage }); break; }
-            }
-          } else if (ev.type === 'message_delta' && ev.delta?.stop_reason) stop = ev.delta.stop_reason;
+        if (PROVIDER === 'gemini') {
+          const gen = geminiStream({ system: SYSTEM_PROMPT, content: buildUserContent(input, ctx), schema: PLAN_TOOL.input_schema, maxTokens: 12000, signal: abort.signal });
+          for (;;) {
+            const { value, done } = await gen.next();
+            if (done) { modelUsed = value?.model || modelUsed; if (value?.finish === 'MAX_TOKENS') stop = 'max_tokens'; break; }
+            onText(value);
+          }
+        } else {
+          const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+          const events = await client.messages.create({
+            model: MODEL(),
+            max_tokens: 8000,
+            system: SYSTEM_PROMPT,
+            tools: [PLAN_TOOL],
+            tool_choice: { type: 'tool', name: PLAN_TOOL.name },
+            messages: [{ role: 'user', content: buildUserContent(input, ctx) }],
+            stream: true,
+          }, { signal: abort.signal });
+          for await (const ev of events) {
+            if (ev.type === 'content_block_delta' && ev.delta?.type === 'input_json_delta') onText(ev.delta.partial_json);
+            else if (ev.type === 'message_delta' && ev.delta?.stop_reason) stop = ev.delta.stop_reason;
+          }
         }
         if (stop === 'max_tokens') throw Object.assign(new Error('The plan was too long to finish. Try again.'), { status: 502 });
         let parsed;
         try { parsed = JSON.parse(buf); } catch { throw Object.assign(new Error('The AI returned an unreadable plan. Please try again.'), { status: 502 }); }
-        send({ type: 'result', data: normalizePlan(parsed, input.kit), context: ctx, model: MODEL() });
+        send({ type: 'result', data: normalizePlan(parsed, input.kit), context: ctx, model: modelUsed });
       } catch (e) {
         if (abort.signal.aborted) return;
         const s = e?.status;
